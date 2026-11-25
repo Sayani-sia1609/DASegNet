@@ -49,24 +49,16 @@ class FeatureMaps:
                 f"  {name} -> Shape (B, C, H, W): {tuple(feature.shape)} | Device: {feature.device}"
             )
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+if __name__ == "__main__":
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    sample_dict = {
+        "C2": torch.randn(2, 64, 128, 128, device=device),
+        "C3": torch.randn(2, 128, 64, 64, device=device),
+        "C4": torch.randn(2, 256, 32, 32, device=device),
+        "C5": torch.randn(2, 512, 16, 16, device=device),
+    }
 
-# Simulate extracted ResNet-34 tensors for a batch of 2 images (512x512 input)
-sample_dict = {
-    "C2": torch.randn(2, 64, 128, 128, device=device),
-    "C3": torch.randn(2, 128, 64, 64, device=device),
-    "C4": torch.randn(2, 256, 32, 32, device=device),
-    "C5": torch.randn(2, 512, 16, 16, device=device),
-}
-
-fm = FeatureMaps(sample_dict)
-
-# 1. Inspect shapes and devices
-fm.display_shapes()
-
-# 2. Inspect channel dimensions dictionary (useful for Debasmita & Sayani)
-print("\nChannel Dimensions Dictionary:", fm.get_channel_dims())
-
-# 3. Retrieve a single level
-c3_tensor = fm.get_feature("C3")
-print("Retrieved C3 tensor shape:", tuple(c3_tensor.shape))
+    feature_maps = FeatureMaps(sample_dict)
+    feature_maps.display_shapes()
+    print("\nChannel Dimensions Dictionary:", feature_maps.get_channel_dims())
+    print("Retrieved C3 tensor shape:", tuple(feature_maps.get_feature("C3").shape))

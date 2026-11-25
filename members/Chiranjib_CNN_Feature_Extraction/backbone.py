@@ -16,9 +16,6 @@ import torch.nn as nn
 from torchvision import models, transforms
 from torchvision.models.feature_extraction import create_feature_extractor
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print("Using device:", device)
-
 import torch
 import torch.nn as nn
 from torchvision import models
@@ -57,22 +54,24 @@ def build_backbone(arch="resnet34", pretrained=True, trainable=True):
     backbone = create_feature_extractor(base_model, return_nodes=return_nodes)
     return backbone
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print("Device:", device)
+if __name__ == "__main__":
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    backbone = build_backbone(
+        arch="resnet34",
+        pretrained=True,
+        trainable=True,
+    ).to(device)
 
-# Initialize ResNet-34 backbone
-backbone = build_backbone(arch="resnet34", pretrained=True, trainable=True).to(device)
+    dummy_input = torch.randn(2, 3, 512, 512, device=device)
+    outputs = backbone(dummy_input)
 
-# Test with a dummy batch of 2 RGB images of size 512x512
-dummy_input = torch.randn(2, 3, 512, 512, device=device)
-outputs = backbone(dummy_input)
+    print("\nExtracted Feature Map Shapes:")
+    for level, tensor in outputs.items():
+        print(f"  {level}: {tuple(tensor.shape)}")
 
-print("\nExtracted Feature Map Shapes:")
-for level, tensor in outputs.items():
-    print(f"  {level}: {tuple(tensor.shape)}")
-
-total_params = sum(p.numel() for p in backbone.parameters())
-trainable_params = sum(p.numel() for p in backbone.parameters() if p.requires_grad)
-
-print(f"Total Parameters:     {total_params:,}")
-print(f"Trainable Parameters: {trainable_params:,}")
+    total_params = sum(p.numel() for p in backbone.parameters())
+    trainable_params = sum(
+        p.numel() for p in backbone.parameters() if p.requires_grad
+    )
+    print(f"Total Parameters:     {total_params:,}")
+    print(f"Trainable Parameters: {trainable_params:,}")

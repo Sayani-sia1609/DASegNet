@@ -93,24 +93,22 @@ class FeatureExtractor(nn.Module):
         raw_features = self.backbone(images)
         return FeatureMaps(raw_features)
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+if __name__ == "__main__":
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    extractor = FeatureExtractor(
+        arch="resnet34",
+        pretrained=True,
+        trainable=True,
+    ).to(device)
 
-# Initialize FeatureExtractor with ResNet-34
-extractor = FeatureExtractor(arch="resnet34", pretrained=True, trainable=True).to(device)
+    batch_images = torch.randn(2, 3, 512, 512, device=device)
+    feature_maps = extractor(batch_images)
+    feature_maps.display_shapes()
+    print("\nOutput Channel Dimensions:", feature_maps.get_channel_dims())
 
-# Simulate Ayon's preprocessed batch: (Batch=2, Channels=3, Height=512, Width=512)
-batch_images = torch.randn(2, 3, 512, 512, device=device)
+    loss = sum(feat.mean() for feat in feature_maps.get_all_features().values())
+    loss.backward()
 
-# Run forward pass
-feature_maps = extractor(batch_images)
-feature_maps.display_shapes()
-print("\nOutput Channel Dimensions:", feature_maps.get_channel_dims())
-
-# Simulate a dummy downstream segmentation loss from C2..C5
-loss = sum(feat.mean() for feat in feature_maps.get_all_features().values())
-loss.backward()
-
-# Check if early backbone layer (conv1) received gradients
-first_layer_grad = extractor.backbone.conv1.weight.grad
-print("Backpropagation check passed:", first_layer_grad is not None)
-print("conv1 gradient norm:", round(first_layer_grad.norm().item(), 6))
+    first_layer_grad = extractor.backbone.conv1.weight.grad
+    print("Backpropagation check passed:", first_layer_grad is not None)
+    print("conv1 gradient norm:", round(first_layer_grad.norm().item(), 6))

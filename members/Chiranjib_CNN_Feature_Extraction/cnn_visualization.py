@@ -151,58 +151,59 @@ def compare_degraded_features(
 
     return {"C2_relative_drift": round(c2_drift.item(), 4), "C5_relative_drift": round(c5_drift.item(), 4)}
 
-from skimage import data
+if __name__ == "__main__":
+    from skimage import data
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Load built-in high-resolution street/architectural scene (no internet download needed)
-raw_img = data.astronaut()  # Or use data.camera() / data.chelsea() / upload your own Cityscapes image
-# Let's use data.brick() or data.chelsea(), or synthesize/load a street scene:
-# Even better: use skimage's built-in urban/architectural image or upload via Colab!
-clean_rgb = cv2.resize(data.chelsea(), (512, 512))
+    # Load built-in high-resolution street/architectural scene (no internet download needed)
+    raw_img = data.astronaut()  # Or use data.camera() / data.chelsea() / upload your own Cityscapes image
+    # Let's use data.brick() or data.chelsea(), or synthesize/load a street scene:
+    # Even better: use skimage's built-in urban/architectural image or upload via Colab!
+    clean_rgb = cv2.resize(data.chelsea(), (512, 512))
 
-# Standard ImageNet preprocessing
-preprocess = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-])
+    # Standard ImageNet preprocessing
+    preprocess = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
 
-clean_tensor = preprocess(clean_rgb).unsqueeze(0).to(device)
+    clean_tensor = preprocess(clean_rgb).unsqueeze(0).to(device)
 
-# Extract features
-extractor = FeatureExtractor(arch="resnet34", pretrained=True, trainable=False).to(device)
-extractor.eval()
+    # Extract features
+    extractor = FeatureExtractor(arch="resnet34", pretrained=True, trainable=False).to(device)
+    extractor.eval()
 
-with torch.no_grad():
-    clean_features = extractor(clean_tensor)
+    with torch.no_grad():
+        clean_features = extractor(clean_tensor)
 
-# Visualize 8 channels of C2 (edges/textures) and C4 (object parts)
-visualize_feature_maps(clean_features, layer="C2", num_channels=8)
-visualize_feature_maps(clean_features, layer="C4", num_channels=8)
+    # Visualize 8 channels of C2 (edges/textures) and C4 (object parts)
+    visualize_feature_maps(clean_features, layer="C2", num_channels=8)
+    visualize_feature_maps(clean_features, layer="C4", num_channels=8)
 
-# 1. Apply Gaussian blur
-degraded = cv2.GaussianBlur(clean_rgb, (15, 15), 4.0)
+    # 1. Apply Gaussian blur
+    degraded = cv2.GaussianBlur(clean_rgb, (15, 15), 4.0)
 
-# 2. Add Gaussian sensor noise
-np.random.seed(42)
-noise = np.random.normal(0, 20, degraded.shape).astype(np.float32)
-degraded = np.clip(degraded.astype(np.float32) + noise, 0, 255).astype(np.uint8)
+    # 2. Add Gaussian sensor noise
+    np.random.seed(42)
+    noise = np.random.normal(0, 20, degraded.shape).astype(np.float32)
+    degraded = np.clip(degraded.astype(np.float32) + noise, 0, 255).astype(np.uint8)
 
-# 3. Apply JPEG compression artifacts (quality=20)
-_, enc_img = cv2.imencode(
-    ".jpg",
-    cv2.cvtColor(degraded, cv2.COLOR_RGB2BGR),
-    [int(cv2.IMWRITE_JPEG_QUALITY), 20],
-)
-degraded_rgb = cv2.cvtColor(cv2.imdecode(enc_img, 1), cv2.COLOR_BGR2RGB)
+    # 3. Apply JPEG compression artifacts (quality=20)
+    _, enc_img = cv2.imencode(
+        ".jpg",
+        cv2.cvtColor(degraded, cv2.COLOR_RGB2BGR),
+        [int(cv2.IMWRITE_JPEG_QUALITY), 20],
+    )
+    degraded_rgb = cv2.cvtColor(cv2.imdecode(enc_img, 1), cv2.COLOR_BGR2RGB)
 
-degraded_tensor = preprocess(degraded_rgb).unsqueeze(0).to(device)
+    degraded_tensor = preprocess(degraded_rgb).unsqueeze(0).to(device)
 
-with torch.no_grad():
-    degraded_features = extractor(degraded_tensor)
+    with torch.no_grad():
+        degraded_features = extractor(degraded_tensor)
 
-# Plot visual comparison and compute quantitative drift metrics
-drift_metrics = compare_degraded_features(
-    clean_rgb, degraded_rgb, clean_features, degraded_features
-)
-print("Quantitative Feature Representation Drift:", drift_metrics)
+    # Plot visual comparison and compute quantitative drift metrics
+    drift_metrics = compare_degraded_features(
+        clean_rgb, degraded_rgb, clean_features, degraded_features
+    )
+    print("Quantitative Feature Representation Drift:", drift_metrics)
